@@ -166,10 +166,16 @@ if ('serviceWorker' in navigator) {
   .bb-trump-btn.no-trump.selected { border-color: rgba(245,240,232,0.4); background: rgba(245,240,232,0.08); }
 
   /* Bidding phase */
-  .bb-phase-label {
-    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em;
-    color: rgba(245,240,232,0.4); margin-bottom: 8px;
+  .bb-phase-header {
+    display: flex; align-items: center; gap: 12px;
+    border-radius: 11px; padding: 13px 14px; margin-bottom: 11px;
+    border: 1.5px solid;
   }
+  .bid-header    { background: rgba(181,101,29,0.1); border-color: var(--gold); }
+  .tricks-header { background: rgba(90,122,58,0.15); border-color: var(--green); }
+  .phase-icon  { font-size: 1.6rem; flex-shrink: 0; }
+  .phase-title { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--cream); font-weight: 700; }
+  .phase-sub   { font-size: 0.72rem; color: rgba(242,234,216,0.5); margin-top: 2px; }
   .bb-blind-banner {
     background: rgba(201,168,76,0.12); border: 1px solid var(--gold);
     border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
@@ -389,15 +395,27 @@ if ('serviceWorker' in navigator) {
 
     <!-- Bidding phase -->
     <div id="bb-bid-phase">
-      <div class="bb-phase-label">Bids</div>
+      <div class="bb-phase-header bid-header">
+        <div class="phase-icon">🃏</div>
+        <div>
+          <div class="phase-title">Place Your Bids</div>
+          <div class="phase-sub">How many slagen will each player win?</div>
+        </div>
+      </div>
       <div class="bb-blind-banner hidden" id="bb-blind-banner">🙈 Blind round — bid without looking at your cards!</div>
       <div class="bb-player-rows" id="bb-bid-rows"></div>
-      <button class="btn-confirm-round" id="bb-confirm-bids" onclick="bbConfirmBids()" disabled>Confirm Bids →</button>
+      <button class="btn-confirm-round" id="bb-confirm-bids" onclick="bbConfirmBids()" disabled>All bids in — play! →</button>
     </div>
 
     <!-- Tricks phase -->
     <div id="bb-tricks-phase" class="hidden">
-      <div class="bb-phase-label" style="margin-bottom:8px">Slagen (Tricks won)</div>
+      <div class="bb-phase-header tricks-header">
+        <div class="phase-icon">✋</div>
+        <div>
+          <div class="phase-title">Round Over — Enter Slagen</div>
+          <div class="phase-sub">How many slagen did each player actually win?</div>
+        </div>
+      </div>
       <div class="bb-player-rows" id="bb-tricks-rows"></div>
       <button class="btn-confirm-round" id="bb-confirm-tricks" onclick="bbConfirmTricks()" disabled>Confirm &amp; Score →</button>
     </div>
@@ -816,7 +834,7 @@ function bbRenderTricksRows() {
     row.innerHTML =
       '<div class="bb-tricks-info">' +
         '<div class="pname"><span class="cdot" style="background:'+COLOURS[pi%8]+'"></span>'+p+'</div>' +
-        '<div class="bid-line">Bid: '+bid+' slag'+(bid!==1?'en':'')+'</div>' +
+        '<div class="bid-line">Target: '+bid+' slag'+(bid!==1?'en':'')+'</div>' +
       '</div>' +
       '<button class="bb-bid-display" id="trick-val-'+pi+'" onclick="bbOpenTricksNumpad(\''+p+'\','+pi+')">' +
         got +
@@ -884,7 +902,7 @@ function bbUpdateTopbar() {
   var cards = bbCards();
   document.getElementById('bb-round-label').textContent = 'Round '+(bb.roundIdx+1)+' of '+BB_ROUNDS.length;
   document.getElementById('bb-cards-label').textContent = cards+' cards';
-  document.getElementById('bb-phase-badge').textContent = bb.phase === 'bid' ? 'Bidding' : 'Tricks';
+  document.getElementById('bb-phase-badge').textContent = bb.phase === 'bid' ? '🃏 Bidding' : '✋ Enter Slagen';
 }
 
 function bbRenderRoundStrip() {
