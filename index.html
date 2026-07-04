@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chiabel">
+<link rel="apple-touch-icon" id="app-icon">
+<title>Chiabel Game Night</title>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/ChiabelGameNight/sw.js');
+  });
+}
+(function() {
+  var c = document.createElement('canvas');
+  c.width = 180; c.height = 180;
+  var ctx = c.getContext('2d');
+  var bg = ctx.createLinearGradient(0, 0, 180, 180);
+  bg.addColorStop(0, '#1e4030');
+  bg.addColorStop(1, '#112618');
+  ctx.fillStyle = bg;
+  ctx.roundRect(0, 0, 180, 180, 36);
+  ctx.fill();
+  ctx.strokeStyle = '#c9a84c';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(90, 90, 74, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(201,168,76,0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(90, 90, 65, 0, Math.PI * 2);
+  ctx.stroke();
+  // Spade suit as the icon
+  ctx.font = 'bold 90px serif';
+  ctx.fillStyle = '#e8c96a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 8;
+  ctx.fillText('♠', 90, 88);
+  ctx.shadowBlur = 0;
+  document.getElementById('app-icon').href = c.toDataURL('image/png');
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --felt: #1a3a2a;
+    --felt-light: #224535;
+    --felt-border: #2d5c3a;
+    --cream: #f5f0e8;
+    --cream-dark: #e8e0cc;
+    --gold: #c9a84c;
+    --gold-light: #e8c96a;
+    --red: #c0392b;
+    --green: #27ae60;
+    --text-dark: #1a1a1a;
+    --text-mid: #4a4a4a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--felt);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    color: var(--cream);
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    padding: 20px 20px 14px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    border-bottom: 1px solid var(--felt-border);
+  }
+  .header h1 { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 900; color: var(--gold-light); }
+  .header p  { font-size: 0.72rem; color: rgba(245,240,232,0.4); margin-top: 2px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* ── TABS ── */
+  .game-tabs { display: flex; max-width: 600px; margin: 14px auto 0; padding: 0 14px; gap: 10px; }
+  .tab-btn {
+    flex: 1; padding: 12px 10px;
+    border: 1.5px solid var(--felt-border); background: transparent;
+    color: rgba(245,240,232,0.5); font-family: 'Playfair Display', serif;
+    font-size: 0.95rem; font-weight: 700; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    -webkit-appearance: none;
+  }
+  .tab-btn.active { background: var(--gold); border-color: var(--gold); color: var(--text-dark); }
+
+  /* ── VIEWS ── */
+  .view { display: none; max-width: 600px; margin: 0 auto; padding: 14px 13px 50px; }
+  .view.active { display: block; }
+  .hidden { display: none !important; }
+
+  /* ── SHARED SETUP ── */
+  .setup-card { background: var(--felt-light); border: 1px solid var(--felt-border); border-radius: 13px; padding: 16px; margin-bottom: 13px; }
+  .setup-card h2 { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--gold-light); margin-bottom: 11px; }
+  .player-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 9px; }
+  .player-row { display: flex; align-items: center; gap: 8px; }
+  .p-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .drag-handle { color: rgba(245,240,232,0.35); font-size: 1.2rem; padding: 0 6px; flex-shrink: 0; user-select: none; -webkit-user-select: none; min-width: 36px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .player-input { flex: 1; padding: 10px 11px; background: rgba(0,0,0,0.2); border: 1px solid var(--felt-border); border-radius: 8px; color: var(--cream); font-family: 'Inter', sans-serif; font-size: 16px; }
+  .player-input:focus { outline: none; border-color: var(--gold); }
+  .btn-remove { background: transparent; border: none; color: rgba(245,240,232,0.28); font-size: 1rem; padding: 6px 8px; min-width: 34px; }
+  .btn-add { width: 100%; padding: 9px; background: transparent; border: 1px dashed var(--felt-border); border-radius: 8px; color: rgba(245,240,232,0.38); font-size: 0.83rem; -webkit-appearance: none; }
+  .btn-primary { width: 100%; padding: 14px; background: var(--gold); border: none; border-radius: 10px; color: var(--text-dark); font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; -webkit-appearance: none; }
+  .btn-primary:active { opacity: 0.82; }
+  .btn-ghost { background: transparent; border: none; color: rgba(245,240,232,0.28); font-size: 0.7rem; padding: 4px 0; }
+  .hint { font-size: 0.7rem; color: rgba(245,240,232,0.35); text-align: center; margin-top: 7px; }
+  .cdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+
+  /* ══════════════════════════════════════
+     BOEREN BRIDGE
+  ══════════════════════════════════════ */
+
+  .bb-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--felt-light); border: 1px solid var(--felt-border);
+    border-radius: 9px; padding: 9px 13px; margin-bottom: 12px;
+    font-size: 0.76rem; color: rgba(245,240,232,0.5);
+  }
+  .bb-topbar .rnd { font-weight: 700; color: var(--gold-light); font-size: 0.9rem; }
+
+  /* Round progress strip */
+  .bb-rounds-strip {
+    display: flex; gap: 4px; overflow-x: auto;
+    padding-bottom: 4px; margin-bottom: 12px;
+    scrollbar-width: none;
+  }
+  .bb-rounds-strip::-webkit-scrollbar { display: none; }
+  .bb-round-pip {
+    flex-shrink: 0; width: 28px; height: 28px;
+    border-radius: 50%; border: 1.5px solid var(--felt-border);
+    background: rgba(0,0,0,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 600; color: rgba(245,240,232,0.35);
+  }
+  .bb-round-pip.done    { background: var(--felt-light); border-color: var(--green); color: var(--green); }
+  .bb-round-pip.current { background: var(--gold); border-color: var(--gold); color: var(--text-dark); }
+  .bb-round-pip.blind   { border-style: dashed; }
+
+  /* Trump selector */
+  .bb-trump-section { background: var(--felt-light); border: 1px solid var(--felt-border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .bb-trump-section h3 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(245,240,232,0.4); margin-bottom: 10px; }
+  .bb-trump-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+  .bb-trump-btn {
+    padding: 12px 6px; border: 2px solid var(--felt-border);
+    background: rgba(0,0,0,0.15); border-radius: 9px;
+    font-size: 1.4rem; text-align: center; cursor: pointer;
+    -webkit-appearance: none; min-height: 56px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  }
+  .bb-trump-btn span { font-size: 0.6rem; font-family: 'Inter', sans-serif; color: rgba(245,240,232,0.45); }
+  .bb-trump-btn.selected { border-color: var(--gold); background: rgba(201,168,76,0.15); }
+  .bb-trump-btn.suit-red { color: #e74c3c; }
+  .bb-trump-btn.suit-black { color: var(--cream); }
+  .bb-trump-btn.no-trump.selected { border-color: rgba(245,240,232,0.4); background: rgba(245,240,232,0.08); }
+
+  /* Bidding phase */
+  .bb-phase-label {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em;
+    color: rgba(245,240,232,0.4); margin-bottom: 8px;
+  }
+  .bb-blind-banner {
+    background: rgba(201,168,76,0.12); border: 1px solid var(--gold);
+    border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
+    font-size: 0.78rem; color: var(--gold-light); text-align: center;
+  }
+
+  .bb-player-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+
+  /* Bid row */
+  .bb-player-row {
+    background: var(--felt-light); border: 1.5px solid var(--felt-border);
+    border-radius: 11px; padding: 11px 13px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .bb-player-row.active-bidder { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,168,76,0.12); }
+  .bb-player-row.bid-locked { border-color: var(--felt-border); opacity: 0.7; }
+  .bb-pname {
+    flex: 1; font-size: 0.85rem; font-weight: 600;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .bb-pname .sub { font-size: 0.68rem; color: rgba(245,240,232,0.4); font-weight: 400; }
+
+  /* Bid stepper */
+  .bb-bid-stepper { display: flex; align-items: center; gap: 0; }
+  .bb-step {
+    width: 36px; height: 36px; border: 1.5px solid var(--felt-border);
+    background: rgba(0,0,0,0.2); color: var(--cream);
+    font-size: 1.1rem; border-radius: 7px; -webkit-appearance: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bb-step:disabled { opacity: 0.25; }
+  .bb-bid-val {
+    width: 40px; text-align: center;
+    font-family: 'Courier Prime', monospace; font-size: 1.3rem; font-weight: 700;
+    color: var(--cream);
+  }
+  .bb-bid-val.cant-use { color: var(--red); }
+
+  /* Tricks phase */
+  .bb-tricks-row {
+    background: var(--felt-light); border: 1.5px solid var(--felt-border);
+    border-radius: 11px; padding: 11px 13px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .bb-tricks-info {
+    flex: 1;
+  }
+  .bb-tricks-info .pname { font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .bb-tricks-info .bid-line { font-size: 0.72rem; color: rgba(245,240,232,0.45); margin-top: 2px; }
+
+  /* Scoreboard table */
+  .bb-scoreboard { background: var(--felt-light); border: 1px solid var(--felt-border); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+  .bb-sb-title { padding: 8px 12px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(245,240,232,0.4); border-bottom: 1px solid var(--felt-border); }
+  .bb-sb-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .bb-sb-table th { padding: 7px 6px; font-size: 0.64rem; font-weight: 600; color: var(--gold-light); text-align: center; background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--felt-border); }
+  .bb-sb-table th:first-child { text-align: left; width: 36px; }
+  .bb-sb-table td { padding: 6px; font-family: 'Courier Prime', monospace; font-size: 0.78rem; text-align: center; border-bottom: 1px solid rgba(45,92,58,0.3); }
+  .bb-sb-table td:first-child { font-family: 'Inter', sans-serif; text-align: left; color: rgba(245,240,232,0.45); font-size: 0.68rem; padding-left: 10px; }
+  .bb-sb-table tr:last-child td { border-bottom: none; }
+  .td-pos { color: var(--green); }
+  .td-neg { color: var(--red); }
+  .td-tot { color: var(--gold-light); font-weight: 700; }
+  .td-cur { background: rgba(201,168,76,0.06); }
+
+  /* Confirm button */
+  .btn-confirm-round {
+    width: 100%; padding: 14px; background: var(--gold); border: none;
+    border-radius: 10px; color: var(--text-dark);
+    font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700;
+    -webkit-appearance: none; margin-top: 4px;
+  }
+  .btn-confirm-round:disabled { opacity: 0.3; }
+  .btn-confirm-round:active:not(:disabled) { opacity: 0.82; }
+
+  /* End screen */
+  .end-screen { text-align: center; padding: 28px 14px; }
+  .end-screen h2 { font-family: 'Playfair Display', serif; font-size: 1.55rem; color: var(--gold-light); margin-bottom: 4px; }
+  .winner-name { font-family: 'Playfair Display', serif; font-size: 2.1rem; font-weight: 900; color: white; margin: 8px 0 2px; }
+  .winner-score { font-family: 'Courier Prime', monospace; font-size: 1.15rem; color: var(--gold); margin-bottom: 20px; }
+  .final-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 11px; border-bottom: 1px solid var(--felt-border); font-size: 0.86rem; }
+  .final-row:last-child { border-bottom: none; }
+  .rank { font-weight: 700; color: var(--gold); margin-right: 6px; }
+  .final-val { font-family: 'Courier Prime', monospace; font-weight: 700; color: var(--gold-light); }
+
+  /* ══════════════════════════════════════
+     YAHTZEE
+  ══════════════════════════════════════ */
+  .ytz-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; margin-top: 2px; gap: 10px; }
+  .ytz-scorecard { background: var(--cream); border-radius: 12px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,0.35); }
+  .ytz-scorecard table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .ytz-scorecard colgroup col:first-child { width: 40%; }
+  .ytz-scorecard th, .ytz-scorecard td { padding: 0; border: 1px solid var(--cream-dark); }
+  .ytz-head th { background: var(--text-dark); color: var(--cream); padding: 9px 5px; font-family: 'Playfair Display', serif; font-size: 0.85rem; text-align: center; }
+  .ytz-head th:first-child { text-align: left; padding-left: 11px; }
+  .ytz-section-hdr td { background: #2c3e50; color: var(--gold-light); font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; padding: 5px 11px; }
+  .ytz-row td:first-child { padding: 7px 6px 7px 11px; font-size: 0.72rem; color: var(--text-dark); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .score-cell { text-align: center; font-family: 'Courier Prime', monospace; font-size: 1rem; font-weight: 700; color: var(--text-dark); background: white; cursor: pointer; padding: 9px 2px; }
+  .score-cell.filled { background: #f9f7f2; cursor: pointer; }
+  .score-cell.filled:active { background: #ede8db; }
+  .score-cell.zero { color: rgba(0,0,0,0.22); }
+  .score-cell.cur-col { background: rgba(201,168,76,0.18); border-color: rgba(201,168,76,0.35) !important; }
+  .score-cell.cur-col.filled { background: rgba(201,168,76,0.12); border-color: rgba(201,168,76,0.3) !important; }
+  .ytz-head th.cur-col-header { background: #3a3000; color: var(--gold-light); }
+  .ytz-bonus-row td:first-child { font-size: 0.66rem; color: var(--text-mid); padding: 5px 6px 5px 11px; font-style: italic; background: #f5f0e8; }
+  .ytz-bonus-row .score-cell { background: #f5f0e8; font-size: 0.76rem; color: var(--text-mid); cursor: default; }
+  .ytz-total-row td:first-child { padding: 8px 6px 8px 11px; font-family: 'Playfair Display', serif; font-size: 0.8rem; color: var(--gold-light); font-weight: 700; background: #1a1a1a; }
+  .ytz-total-row .score-cell { background: #1a1a1a; color: var(--gold-light); font-size: 0.98rem; cursor: default; }
+
+  /* Yahtzee modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: flex-end; justify-content: center; padding-bottom: env(safe-area-inset-bottom,0px); }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--felt-light); border: 1px solid var(--felt-border); border-radius: 18px 18px 0 0; padding: 20px 16px 26px; width: 100%; max-width: 500px; }
+  .modal h3 { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--gold-light); }
+  .modal-sub  { font-size: 0.73rem; color: rgba(245,240,232,0.4); margin: 3px 0 4px; }
+  .modal-hint { font-size: 0.71rem; color: rgba(245,240,232,0.4); margin-bottom: 13px; font-style: italic; }
+  .score-btns { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; margin-bottom: 13px; }
+  .score-btn { padding: 11px 3px; border: 1.5px solid var(--felt-border); background: rgba(0,0,0,0.2); color: var(--cream); border-radius: 8px; font-family: 'Courier Prime', monospace; font-size: 0.88rem; font-weight: 700; min-height: 44px; -webkit-appearance: none; }
+  .score-btn.sel { background: var(--gold); border-color: var(--gold); color: var(--text-dark); }
+  .modal-actions { display: flex; gap: 7px; }
+  .btn-confirm { flex: 1; padding: 12px; background: var(--gold); border: none; border-radius: 9px; color: var(--text-dark); font-weight: 700; font-size: 0.88rem; -webkit-appearance: none; }
+  .btn-confirm:disabled { opacity: 0.3; }
+  .btn-score-zero { padding: 12px 13px; background: rgba(192,57,43,0.18); border: 1px solid var(--red); border-radius: 9px; color: #e74c3c; font-size: 0.86rem; -webkit-appearance: none; }
+  .btn-modal-cancel { padding: 12px 13px; background: transparent; border: 1px solid var(--felt-border); border-radius: 9px; color: rgba(245,240,232,0.45); font-size: 0.86rem; -webkit-appearance: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>♠ Chiabel Game Night</h1>
+  <p>Scoreboard</p>
+</div>
+
+<div class="game-tabs">
+  <button class="tab-btn active" id="tab-bb"      onclick="switchGame('bb')">♠ Boeren Bridge</button>
+  <button class="tab-btn"        id="tab-yahtzee" onclick="switchGame('yahtzee')">🎲 Yahtzee</button>
+</div>
+
+<!-- ════════════════════ BOEREN BRIDGE ════════════════════ -->
+<div class="view active" id="view-bb">
+
+  <!-- Setup -->
+  <div id="bb-setup">
+    <div class="setup-card" style="margin-top:13px">
+      <h2>Players</h2>
+      <div class="player-list" id="bb-player-list"></div>
+      <button class="btn-add" onclick="bbAddPlayer()">+ Add player</button>
+    </div>
+    <button class="btn-primary" onclick="bbStart()">Start Game</button>
+    <p class="hint">2–7 players · drag to reorder · 15 rounds · first bid is blind</p>
+  </div>
+
+  <!-- Game -->
+  <div id="bb-game" class="hidden">
+    <div class="bb-topbar">
+      <div>
+        <span class="rnd" id="bb-round-label">Round 1</span>
+        <span id="bb-cards-label" style="margin-left:6px;font-size:0.72rem;color:rgba(245,240,232,0.4)"></span>
+      </div>
+      <span id="bb-phase-badge" style="font-size:0.7rem;border:1px solid var(--felt-border);padding:2px 8px;border-radius:5px;color:rgba(245,240,232,0.4)"></span>
+      <button class="btn-ghost" onclick="bbResetGame()" style="border:1px solid var(--felt-border);padding:5px 9px;border-radius:7px;">New game</button>
+    </div>
+
+    <!-- Round progress -->
+    <div class="bb-rounds-strip" id="bb-rounds-strip"></div>
+
+    <!-- Trump selector (hidden during blind round) -->
+    <div class="bb-trump-section" id="bb-trump-section">
+      <h3>Troef (Trump)</h3>
+      <div class="bb-trump-grid">
+        <button class="bb-trump-btn suit-black" id="trump-spades"  onclick="bbSetTrump('spades')">♠<span>Spades</span></button>
+        <button class="bb-trump-btn suit-red"   id="trump-hearts"  onclick="bbSetTrump('hearts')">♥<span>Hearts</span></button>
+        <button class="bb-trump-btn suit-black" id="trump-clubs"   onclick="bbSetTrump('clubs')">♣<span>Clubs</span></button>
+        <button class="bb-trump-btn suit-red"   id="trump-diamonds" onclick="bbSetTrump('diamonds')">♦<span>Diamonds</span></button>
+      </div>
+    </div>
+
+    <!-- Bidding phase -->
+    <div id="bb-bid-phase">
+      <div class="bb-phase-label">Bids</div>
+      <div class="bb-blind-banner hidden" id="bb-blind-banner">🙈 Blind round — bid without looking at your cards!</div>
+      <div class="bb-player-rows" id="bb-bid-rows"></div>
+      <button class="btn-confirm-round" id="bb-confirm-bids" onclick="bbConfirmBids()" disabled>Confirm Bids →</button>
+    </div>
+
+    <!-- Tricks phase -->
+    <div id="bb-tricks-phase" class="hidden">
+      <div class="bb-phase-label" style="margin-bottom:8px">Slagen (Tricks won)</div>
+      <div class="bb-player-rows" id="bb-tricks-rows"></div>
+      <button class="btn-confirm-round" id="bb-confirm-tricks" onclick="bbConfirmTricks()" disabled>Confirm &amp; Score →</button>
+    </div>
+
+    <!-- Scoreboard -->
+    <div class="bb-scoreboard" style="margin-top:14px">
+      <div class="bb-sb-title">Scores</div>
+      <table class="bb-sb-table">
+        <thead id="bb-sb-head"></thead>
+        <tbody id="bb-sb-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- End -->
+  <div id="bb-end" class="hidden end-screen">
+    <h2>🏆 Winner!</h2>
+    <div class="winner-name" id="bb-win-name"></div>
+    <div class="winner-score" id="bb-win-score"></div>
+    <div id="bb-final"></div>
+    <button class="btn-primary" style="margin-top:20px" onclick="bbResetGame()">Play Again</button>
+  </div>
+</div>
+
+<!-- ════════════════════ YAHTZEE ════════════════════ -->
+<div class="view" id="view-yahtzee">
+  <div id="ytz-setup">
+    <div class="setup-card" style="margin-top:13px">
+      <h2>Players</h2>
+      <div class="player-list" id="ytz-player-list"></div>
+      <button class="btn-add" onclick="ytzAddPlayer()">+ Add player</button>
+    </div>
+    <button class="btn-primary" onclick="ytzStart()">Start Game</button>
+    <p class="hint">1–6 players · drag to reorder · tap any cell to enter a score</p>
+  </div>
+
+  <div id="ytz-game" class="hidden">
+    <div class="ytz-topbar">
+      <div id="ytz-active-banner" style="display:flex;align-items:center;gap:9px;background:var(--felt-light);border:1.5px solid var(--gold);border-radius:10px;padding:10px 14px;flex:1;margin-right:10px">
+        <span style="font-size:0.7rem;color:rgba(245,240,232,0.45);text-transform:uppercase;letter-spacing:0.07em;">Now scoring</span>
+        <span id="ytz-active-name" style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold-light);"></span>
+      </div>
+      <button class="btn-ghost" onclick="ytzResetGame()" style="border:1px solid var(--felt-border);padding:7px 10px;border-radius:7px;">New game</button>
+    </div>
+    <div class="ytz-scorecard"><table id="ytz-table"></table></div>
+    <button class="btn-primary" style="margin-top:12px" onclick="ytzCheckEnd()">Show Final Scores</button>
+  </div>
+
+  <div id="ytz-end" class="hidden end-screen">
+    <h2>🎲 Game Over!</h2>
+    <div class="winner-name" id="ytz-win-name"></div>
+    <div class="winner-score" id="ytz-win-score"></div>
+    <div id="ytz-final"></div>
+    <button class="btn-primary" style="margin-top:20px" onclick="ytzResetGame()">Play Again</button>
+  </div>
+</div>
+
+<!-- Yahtzee modal -->
+<div class="modal-overlay" id="ytz-modal">
+  <div class="modal">
+    <h3 id="m-cat"></h3>
+    <div class="modal-sub"  id="m-player"></div>
+    <div class="modal-hint" id="m-hint"></div>
+    <div class="score-btns" id="m-btns"></div>
+    <div class="modal-actions">
+      <button class="btn-score-zero" id="m-score-zero" onclick="ytzCommit(0)">Strike out (0)</button>
+      <button class="btn-confirm" id="m-confirm" onclick="ytzCommitSelected()" disabled>Confirm</button>
+      <button class="btn-modal-cancel" onclick="ytzCloseModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+var COLOURS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22','#e91e63'];
+var DEFAULT_PLAYERS = ['Peter', 'Arjen', 'Chiara', 'Abel'];
+
+function switchGame(g) {
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('view-'+g).classList.add('active');
+  document.getElementById('tab-'+g).classList.add('active');
+}
+
+/* ════════════════════════════════════════
+   BOEREN BRIDGE
+════════════════════════════════════════
+   Rounds: 5,6,7,8,9,10,11,12,11,10,9,8,7,6,5 (15 rounds)
+   Round 1 (5 cards): blind bidding
+   Rounds 2+: normal bidding, can't-equal rule applies
+   Scoring: correct = 3 + 2×bid, wrong = -(abs(bid-actual))
+   Last player to bid can't make total bids equal tricks available
+*/
+
+var BB_ROUNDS = [5,6,7,8,9,10,11,12,11,10,9,8,7,6,5];
+
+var bb = {
+  players: [],
+  scores: {},      // name -> [score per round]
+  roundIdx: 0,     // 0-14
+  phase: 'bid',    // 'bid' | 'tricks'
+  trump: null,
+  bids: {},        // name -> number
+  tricks: {},      // name -> number
+  dealerIdx: 0,    // rotates each round
+};
+
+function bbCards() { return BB_ROUNDS[bb.roundIdx]; }
+function bbIsBlind() { return bb.roundIdx === 0; }
+
+/* ── Setup ── */
+function bbInitSetup() {
+  bb.players = DEFAULT_PLAYERS.slice();
+  bbRebuildSetup();
+}
+
+var bbDrag = { active: false };
+
+function bbRebuildSetup() {
+  var list = document.getElementById('bb-player-list');
+  list.innerHTML = '';
+  bb.players.forEach(function(name, i) {
+    var row = document.createElement('div');
+    row.className = 'player-row';
+    row.dataset.idx = i;
+    row.innerHTML =
+      '<span class="drag-handle">⠿</span>' +
+      '<span class="p-dot" style="background:'+COLOURS[i%8]+'"></span>' +
+      '<input class="player-input" type="text" value="'+name+'" oninput="bb.players['+i+']=this.value" placeholder="Player '+(i+1)+'">' +
+      '<button class="btn-remove" onclick="bbRemovePlayer('+i+')">✕</button>';
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.drag-handle').forEach(function(h) {
+    h.addEventListener('touchstart', bbTouchStart, { passive: false });
+  });
+}
+
+function bbTouchStart(e) {
+  e.preventDefault();
+  var row = e.currentTarget.parentElement;
+  var list = document.getElementById('bb-player-list');
+  var rows = Array.prototype.slice.call(list.querySelectorAll('.player-row'));
+  var fromIdx = parseInt(row.dataset.idx);
+  var touch = e.touches[0];
+  list.querySelectorAll('.player-input').forEach(function(inp, i){ bb.players[i] = inp.value.trim()||'Player'; });
+  var ghost = row.cloneNode(true);
+  var rect = row.getBoundingClientRect();
+  ghost.style.cssText = 'position:fixed;left:'+rect.left+'px;top:'+rect.top+'px;width:'+rect.width+'px;opacity:0.85;z-index:999;pointer-events:none;background:var(--felt-light);border:2px solid var(--gold);border-radius:11px;';
+  document.body.appendChild(ghost);
+  row.style.opacity = '0.3';
+  bbDrag = { active: true, fromIdx: fromIdx, ghost: ghost, dragRow: row, offsetY: touch.clientY - rect.top, rows: rows };
+  document.addEventListener('touchmove', bbTouchMove, { passive: false });
+  document.addEventListener('touchend', bbTouchEnd);
+}
+function bbTouchMove(e) {
+  if (!bbDrag.active) return;
+  e.preventDefault();
+  var touch = e.touches[0];
+  bbDrag.ghost.style.top = (touch.clientY - bbDrag.offsetY) + 'px';
+  bbDrag.rows.forEach(function(r){ r.style.borderColor=''; });
+  bbDrag.rows.forEach(function(r, ri) {
+    var rect = r.getBoundingClientRect();
+    if (touch.clientY >= rect.top && touch.clientY <= rect.bottom && ri !== bbDrag.fromIdx) r.style.borderColor = 'var(--gold)';
+  });
+}
+function bbTouchEnd(e) {
+  if (!bbDrag.active) return;
+  document.removeEventListener('touchmove', bbTouchMove);
+  document.removeEventListener('touchend', bbTouchEnd);
+  var touch = e.changedTouches[0];
+  bbDrag.ghost.remove();
+  bbDrag.dragRow.style.opacity = '';
+  bbDrag.rows.forEach(function(r){ r.style.borderColor=''; });
+  var toIdx = bbDrag.fromIdx;
+  bbDrag.rows.forEach(function(r, ri) {
+    var rect = r.getBoundingClientRect();
+    if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) toIdx = ri;
+  });
+  if (toIdx !== bbDrag.fromIdx) {
+    var moved = bb.players.splice(bbDrag.fromIdx, 1)[0];
+    bb.players.splice(toIdx, 0, moved);
+  }
+  bbDrag.active = false;
+  bbRebuildSetup();
+}
+
+function bbAddPlayer() {
+  if (bb.players.length >= 7) return;
+  bb.players.push('Player '+(bb.players.length+1));
+  bbRebuildSetup();
+}
+function bbRemovePlayer(i) {
+  if (bb.players.length <= 2) return;
+  bb.players.splice(i, 1);
+  bbRebuildSetup();
+}
+
+function bbStart() {
+  var inputs = document.querySelectorAll('#bb-player-list .player-input');
+  bb.players = Array.prototype.map.call(inputs, function(inp){ return inp.value.trim()||'Player'; });
+  if (bb.players.length < 2) { alert('Add at least 2 players.'); return; }
+  bb.scores = {};
+  bb.players.forEach(function(p){ bb.scores[p] = []; });
+  bb.roundIdx = 0;
+  bb.dealerIdx = 0;
+  document.getElementById('bb-setup').classList.add('hidden');
+  document.getElementById('bb-end').classList.add('hidden');
+  document.getElementById('bb-game').classList.remove('hidden');
+  bbBuildSBHeader();
+  bbStartRound();
+}
+
+/* ── Round flow ── */
+function bbStartRound() {
+  bb.phase = 'bid';
+  bb.trump = null;
+  bb.bids = {};
+  bb.tricks = {};
+  bb.players.forEach(function(p){ bb.bids[p] = 0; bb.tricks[p] = 0; });
+
+  // Trump hidden for blind round
+  var trumpSection = document.getElementById('bb-trump-section');
+  if (bbIsBlind()) {
+    trumpSection.classList.add('hidden');
+  } else {
+    trumpSection.classList.remove('hidden');
+    // Clear trump selection
+    document.querySelectorAll('.bb-trump-btn').forEach(function(b){ b.classList.remove('selected'); });
+  }
+
+  document.getElementById('bb-blind-banner').classList.toggle('hidden', !bbIsBlind());
+  document.getElementById('bb-bid-phase').classList.remove('hidden');
+  document.getElementById('bb-tricks-phase').classList.add('hidden');
+
+  bbUpdateTopbar();
+  bbRenderRoundStrip();
+  bbRenderBidRows();
+  bbRenderSB();
+}
+
+function bbSetTrump(suit) {
+  bb.trump = suit;
+  document.querySelectorAll('.bb-trump-btn').forEach(function(b){ b.classList.remove('selected'); });
+  document.getElementById('trump-'+suit).classList.add('selected');
+}
+
+/* ── Bid phase ── */
+function bbBidOrder() {
+  // Left of dealer goes first, dealer goes last (and is subject to can't-equal)
+  var n = bb.players.length;
+  var order = [];
+  for (var i = 1; i <= n; i++) {
+    order.push((bb.dealerIdx + i) % n);
+  }
+  return order;
+}
+
+function bbTotalBids() {
+  return bb.players.reduce(function(s, p){ return s + (bb.bids[p] || 0); }, 0);
+}
+
+function bbCantEqual() {
+  // The forbidden bid for the last bidder (dealer): can't make total equal tricks
+  if (bbIsBlind()) return -1; // no restriction in blind round
+  var cards = bbCards();
+  var othersTotal = 0;
+  var order = bbBidOrder();
+  var lastPi = order[order.length - 1];
+  var lastName = bb.players[lastPi];
+  bb.players.forEach(function(p) {
+    if (p !== lastName) othersTotal += (bb.bids[p] || 0);
+  });
+  return cards - othersTotal; // this value is forbidden for the last bidder
+}
+
+function bbAllBidsSet() {
+  return bb.players.every(function(p){ return bb.bids[p] !== undefined && bb.bids[p] !== null; });
+}
+
+function bbRenderBidRows() {
+  var rows = document.getElementById('bb-bid-rows');
+  rows.innerHTML = '';
+  var order = bbBidOrder();
+  var lastPi = order[order.length - 1];
+  var lastName = bb.players[lastPi];
+  var forbidden = bbCantEqual();
+
+  order.forEach(function(pi, orderIdx) {
+    var p = bb.players[pi];
+    var isLast = (pi === lastPi);
+    var row = document.createElement('div');
+    row.className = 'bb-player-row';
+    var subText = isLast && !bbIsBlind() ? 'Dealer — bids last' : '';
+    var bidVal = bb.bids[p] !== undefined ? bb.bids[p] : 0;
+    var isForbidden = isLast && !bbIsBlind() && bidVal === forbidden;
+
+    row.innerHTML =
+      '<div class="bb-pname">' +
+        '<span class="cdot" style="background:'+COLOURS[pi%8]+'"></span>' +
+        p +
+        (subText ? '<span class="sub">'+subText+'</span>' : '') +
+      '</div>' +
+      '<div class="bb-bid-stepper">' +
+        '<button class="bb-step" onclick="bbAdjBid(\''+p+'\',-1)">−</button>' +
+        '<div class="bb-bid-val'+(isForbidden?' cant-use':'')+'" id="bid-val-'+pi+'">'+bidVal+'</div>' +
+        '<button class="bb-step" onclick="bbAdjBid(\''+p+'\',1)">+</button>' +
+      '</div>';
+    rows.appendChild(row);
+  });
+
+  // Update confirm button
+  var forbidden2 = bbCantEqual();
+  var lastName2 = bb.players[bbBidOrder()[bbBidOrder().length-1]];
+  var lastBid = bb.bids[lastName2] || 0;
+  var allSet = bbAllBidsSet();
+  var lastOk = bbIsBlind() || lastBid !== forbidden2;
+  var trumpOk = bbIsBlind() || bb.trump !== null;
+  document.getElementById('bb-confirm-bids').disabled = !(allSet && lastOk && trumpOk);
+}
+
+function bbAdjBid(name, delta) {
+  var cards = bbCards();
+  var newVal = Math.max(0, Math.min(cards, (bb.bids[name] || 0) + delta));
+  bb.bids[name] = newVal;
+  bbRenderBidRows();
+}
+
+function bbConfirmBids() {
+  bb.phase = 'tricks';
+  document.getElementById('bb-bid-phase').classList.add('hidden');
+  document.getElementById('bb-tricks-phase').classList.remove('hidden');
+  bbUpdateTopbar();
+  bbRenderTricksRows();
+}
+
+/* ── Tricks phase ── */
+function bbTricksTotal() {
+  return bb.players.reduce(function(s,p){ return s+(bb.tricks[p]||0); },0);
+}
+
+function bbRenderTricksRows() {
+  var rows = document.getElementById('bb-tricks-rows');
+  rows.innerHTML = '';
+  var cards = bbCards();
+
+  bb.players.forEach(function(p, pi) {
+    var bid = bb.bids[p] || 0;
+    var got = bb.tricks[p] || 0;
+    var row = document.createElement('div');
+    row.className = 'bb-tricks-row';
+    row.innerHTML =
+      '<div class="bb-tricks-info">' +
+        '<div class="pname"><span class="cdot" style="background:'+COLOURS[pi%8]+'"></span>'+p+'</div>' +
+        '<div class="bid-line">Bid: '+bid+' slag'+(bid!==1?'en':'')+'</div>' +
+      '</div>' +
+      '<div class="bb-bid-stepper">' +
+        '<button class="bb-step" onclick="bbAdjTricks(\''+p+'\',-1)">−</button>' +
+        '<div class="bb-bid-val" id="trick-val-'+pi+'">'+got+'</div>' +
+        '<button class="bb-step" onclick="bbAdjTricks(\''+p+'\',1)">+</button>' +
+      '</div>';
+    rows.appendChild(row);
+  });
+
+  bbUpdateTricksConfirm();
+}
+
+function bbAdjTricks(name, delta) {
+  var cards = bbCards();
+  var newVal = Math.max(0, Math.min(cards, (bb.tricks[name] || 0) + delta));
+  bb.tricks[name] = newVal;
+
+  // Update display
+  bb.players.forEach(function(p, pi) {
+    var el = document.getElementById('trick-val-'+pi);
+    if (el) el.textContent = bb.tricks[p] || 0;
+  });
+  bbUpdateTricksConfirm();
+}
+
+function bbUpdateTricksConfirm() {
+  var cards = bbCards();
+  var total = bbTricksTotal();
+  var btn = document.getElementById('bb-confirm-tricks');
+  btn.disabled = total !== cards;
+  btn.textContent = total === cards
+    ? 'Confirm & Score →'
+    : 'Total slagen: '+total+' / '+cards+' (must equal '+cards+')';
+}
+
+function bbConfirmTricks() {
+  // Score each player
+  bb.players.forEach(function(p) {
+    var bid = bb.bids[p] || 0;
+    var got = bb.tricks[p] || 0;
+    var score;
+    if (bid === got) {
+      score = 3 + (2 * bid);
+    } else {
+      score = -(Math.abs(bid - got));
+    }
+    bb.scores[p].push(score);
+  });
+
+  bbRenderSB();
+  bb.roundIdx++;
+  bb.dealerIdx = (bb.dealerIdx + 1) % bb.players.length;
+
+  if (bb.roundIdx >= BB_ROUNDS.length) {
+    bbShowEnd();
+  } else {
+    bbStartRound();
+  }
+}
+
+/* ── Rendering ── */
+function bbUpdateTopbar() {
+  var cards = bbCards();
+  document.getElementById('bb-round-label').textContent = 'Round '+(bb.roundIdx+1)+' of '+BB_ROUNDS.length;
+  document.getElementById('bb-cards-label').textContent = cards+' cards';
+  document.getElementById('bb-phase-badge').textContent = bb.phase === 'bid' ? 'Bidding' : 'Tricks';
+}
+
+function bbRenderRoundStrip() {
+  var strip = document.getElementById('bb-rounds-strip');
+  strip.innerHTML = '';
+  BB_ROUNDS.forEach(function(cards, i) {
+    var pip = document.createElement('div');
+    var cls = 'bb-round-pip';
+    if (i < bb.roundIdx) cls += ' done';
+    else if (i === bb.roundIdx) cls += ' current';
+    if (i === 0) cls += ' blind';
+    pip.className = cls;
+    pip.textContent = cards;
+    strip.appendChild(pip);
+  });
+  // Scroll current into view
+  var current = strip.querySelector('.current');
+  if (current) current.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+}
+
+function bbBuildSBHeader() {
+  var thead = document.getElementById('bb-sb-head');
+  var html = '<tr><th>Rnd</th>';
+  bb.players.forEach(function(p, i) {
+    html += '<th><span class="cdot" style="background:'+COLOURS[i%8]+'"></span>'+p+'</th>';
+  });
+  thead.innerHTML = html + '</tr>';
+}
+
+function bbTotalScore(p) {
+  return bb.scores[p].reduce(function(s, v){ return s+v; }, 0);
+}
+
+function bbRenderSB() {
+  var tbody = document.getElementById('bb-sb-body');
+  var rows = '';
+
+  // Show last few rounds
+  var history = Math.min(bb.roundIdx, BB_ROUNDS.length);
+  var start = Math.max(0, history - 8);
+  for (var i = start; i < history; i++) {
+    var row = '<tr><td>'+BB_ROUNDS[i]+'</td>';
+    bb.players.forEach(function(p) {
+      var s = bb.scores[p][i];
+      var cls = s > 0 ? 'td-pos' : s < 0 ? 'td-neg' : '';
+      row += '<td class="'+cls+'">'+(s > 0 ? '+'+s : s)+'</td>';
+    });
+    rows += row + '</tr>';
+  }
+
+  // Totals
+  var tot = '<tr><td style="color:var(--gold-light);font-size:0.66rem;padding-left:10px">TOT</td>';
+  bb.players.forEach(function(p) {
+    tot += '<td class="td-tot">'+bbTotalScore(p)+'</td>';
+  });
+  tbody.innerHTML = rows + tot + '</tr>';
+}
+
+function bbShowEnd() {
+  var sorted = bb.players.slice().sort(function(a,b){ return bbTotalScore(b)-bbTotalScore(a); });
+  var winner = sorted[0];
+  document.getElementById('bb-game').classList.add('hidden');
+  document.getElementById('bb-end').classList.remove('hidden');
+  document.getElementById('bb-win-name').textContent = winner;
+  document.getElementById('bb-win-score').textContent = bbTotalScore(winner)+' points';
+  document.getElementById('bb-final').innerHTML = sorted.map(function(p,i){
+    return '<div class="final-row"><span><span class="rank">'+(i+1)+'.</span>'+p+'</span><span class="final-val">'+bbTotalScore(p)+'</span></div>';
+  }).join('');
+}
+
+function bbResetGame() {
+  document.getElementById('bb-game').classList.add('hidden');
+  document.getElementById('bb-end').classList.add('hidden');
+  document.getElementById('bb-setup').classList.remove('hidden');
+  bbInitSetup();
+}
+
+/* ════════════════════════════════════════
+   YAHTZEE (same as Kimenai version)
+════════════════════════════════════════ */
+var YTZ_CATS = [
+  { id:'ones',    label:'Ones',           section:'upper', hint:'Sum of all 1s',            max:5  },
+  { id:'twos',    label:'Twos',           section:'upper', hint:'Sum of all 2s',            max:10 },
+  { id:'threes',  label:'Threes',         section:'upper', hint:'Sum of all 3s',            max:15 },
+  { id:'fours',   label:'Fours',          section:'upper', hint:'Sum of all 4s',            max:20 },
+  { id:'fives',   label:'Fives',          section:'upper', hint:'Sum of all 5s',            max:25 },
+  { id:'sixes',   label:'Sixes',          section:'upper', hint:'Sum of all 6s',            max:30 },
+  { id:'3oak',    label:'3 of a Kind',    section:'lower', hint:'Sum of all dice (need 3+)', max:30 },
+  { id:'4oak',    label:'4 of a Kind',    section:'lower', hint:'Sum of all dice (need 4+)', max:30 },
+  { id:'fh',      label:'Full House',     section:'lower', hint:'3+2 = scores 25',           max:25 },
+  { id:'ss',      label:'Small Straight', section:'lower', hint:'4 in a row = 30',           max:30 },
+  { id:'ls',      label:'Large Straight', section:'lower', hint:'5 in a row = 40',           max:40 },
+  { id:'yahtzee', label:'Yahtzee!',       section:'lower', hint:'5 of a kind = 50',          max:50 },
+  { id:'chance',  label:'Chance',         section:'lower', hint:'Sum of all dice',            max:30 },
+];
+
+var ytz = { players: [], scores: {}, activePi: 0 };
+var mState = { catId: null, pi: null, bonus: false, val: null };
+var ytzDrag = { active: false };
+
+function ytzInitSetup() {
+  ytz.players = DEFAULT_PLAYERS.slice();
+  ytzRebuildSetup();
+}
+function ytzRebuildSetup() {
+  var list = document.getElementById('ytz-player-list');
+  list.innerHTML = '';
+  ytz.players.forEach(function(name, i) {
+    var row = document.createElement('div');
+    row.className = 'player-row';
+    row.dataset.idx = i;
+    row.innerHTML =
+      '<span class="drag-handle">⠿</span>' +
+      '<span class="p-dot" style="background:'+COLOURS[i%8]+'"></span>' +
+      '<input class="player-input" type="text" value="'+name+'" oninput="ytz.players['+i+']=this.value" placeholder="Player '+(i+1)+'">' +
+      '<button class="btn-remove" onclick="ytzRemovePlayer('+i+')">✕</button>';
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.drag-handle').forEach(function(h) {
+    h.addEventListener('touchstart', ytzTouchStart, { passive: false });
+  });
+}
+function ytzTouchStart(e) {
+  e.preventDefault();
+  var row = e.currentTarget.parentElement;
+  var list = document.getElementById('ytz-player-list');
+  var rows = Array.prototype.slice.call(list.querySelectorAll('.player-row'));
+  var fromIdx = parseInt(row.dataset.idx);
+  var touch = e.touches[0];
+  list.querySelectorAll('.player-input').forEach(function(inp,i){ ytz.players[i]=inp.value.trim()||'Player'; });
+  var ghost = row.cloneNode(true);
+  var rect = row.getBoundingClientRect();
+  ghost.style.cssText = 'position:fixed;left:'+rect.left+'px;top:'+rect.top+'px;width:'+rect.width+'px;opacity:0.85;z-index:999;pointer-events:none;background:var(--felt-light);border:2px solid var(--gold);border-radius:11px;';
+  document.body.appendChild(ghost);
+  row.style.opacity = '0.3';
+  ytzDrag = { active:true, fromIdx:fromIdx, ghost:ghost, dragRow:row, offsetY:touch.clientY-rect.top, rows:rows };
+  document.addEventListener('touchmove', ytzTouchMove, { passive:false });
+  document.addEventListener('touchend', ytzTouchEnd);
+}
+function ytzTouchMove(e) {
+  if (!ytzDrag.active) return;
+  e.preventDefault();
+  var touch = e.touches[0];
+  ytzDrag.ghost.style.top = (touch.clientY-ytzDrag.offsetY)+'px';
+  ytzDrag.rows.forEach(function(r){ r.style.borderColor=''; });
+  ytzDrag.rows.forEach(function(r,ri) {
+    var rect = r.getBoundingClientRect();
+    if (touch.clientY>=rect.top && touch.clientY<=rect.bottom && ri!==ytzDrag.fromIdx) r.style.borderColor='var(--gold)';
+  });
+}
+function ytzTouchEnd(e) {
+  if (!ytzDrag.active) return;
+  document.removeEventListener('touchmove', ytzTouchMove);
+  document.removeEventListener('touchend', ytzTouchEnd);
+  var touch = e.changedTouches[0];
+  ytzDrag.ghost.remove();
+  ytzDrag.dragRow.style.opacity='';
+  ytzDrag.rows.forEach(function(r){ r.style.borderColor=''; });
+  var toIdx = ytzDrag.fromIdx;
+  ytzDrag.rows.forEach(function(r,ri) {
+    var rect = r.getBoundingClientRect();
+    if (touch.clientY>=rect.top && touch.clientY<=rect.bottom) toIdx=ri;
+  });
+  if (toIdx!==ytzDrag.fromIdx) { var m=ytz.players.splice(ytzDrag.fromIdx,1)[0]; ytz.players.splice(toIdx,0,m); }
+  ytzDrag.active=false;
+  ytzRebuildSetup();
+}
+function ytzAddPlayer() { if(ytz.players.length<6){ ytz.players.push('Player '+(ytz.players.length+1)); ytzRebuildSetup(); } }
+function ytzRemovePlayer(i) { if(ytz.players.length>1){ ytz.players.splice(i,1); ytzRebuildSetup(); } }
+
+function ytzStart() {
+  var inputs = document.querySelectorAll('#ytz-player-list .player-input');
+  ytz.players = Array.prototype.map.call(inputs, function(inp){ return inp.value.trim()||'Player'; });
+  ytz.scores = {};
+  ytz.players.forEach(function(p) {
+    ytz.scores[p]={};
+    YTZ_CATS.forEach(function(c){ ytz.scores[p][c.id]=null; });
+    ytz.scores[p].yahtzee_bonus=0;
+  });
+  ytz.activePi=0;
+  document.getElementById('ytz-setup').classList.add('hidden');
+  document.getElementById('ytz-end').classList.add('hidden');
+  document.getElementById('ytz-game').classList.remove('hidden');
+  ytzBuildTable();
+}
+
+function ytzBuildTable() {
+  var table = document.getElementById('ytz-table');
+  var n = ytz.players.length;
+  var html = '<colgroup><col style="width:40%">';
+  for (var c=0;c<n;c++) html+='<col>';
+  html+='</colgroup><thead><tr class="ytz-head"><th>Category</th>';
+  ytz.players.forEach(function(p,i){ html+='<th><span class="cdot" style="background:'+COLOURS[i%8]+'"></span>'+p+'</th>'; });
+  html+='</tr></thead><tbody>';
+  var lastSec=null;
+  YTZ_CATS.forEach(function(cat) {
+    if(cat.section!==lastSec){
+      html+='<tr class="ytz-section-hdr"><td colspan="'+(n+1)+'">'+(cat.section==='upper'?'▲ Upper Section':'▼ Lower Section')+'</td></tr>';
+      lastSec=cat.section;
+    }
+    html+='<tr class="ytz-row"><td>'+cat.label+'</td>';
+    ytz.players.forEach(function(p,pi){ html+='<td class="score-cell" id="sc-'+cat.id+'-'+pi+'" onclick="ytzCellTap(\''+cat.id+'\','+pi+')"></td>'; });
+    html+='</tr>';
+    if(cat.id==='sixes'){
+      html+='<tr class="ytz-bonus-row"><td>Bonus (≥63 = +35)</td>';
+      ytz.players.forEach(function(_,pi){ html+='<td class="score-cell" id="sc-bonus-'+pi+'"></td>'; });
+      html+='</tr><tr class="ytz-bonus-row"><td>Upper Total</td>';
+      ytz.players.forEach(function(_,pi){ html+='<td class="score-cell" id="sc-uptot-'+pi+'"></td>'; });
+      html+='</tr>';
+    }
+    if(cat.id==='yahtzee'){
+      html+='<tr class="ytz-bonus-row"><td>Yahtzee Bonus (+100 each)</td>';
+      ytz.players.forEach(function(_,pi){ html+='<td class="score-cell" id="sc-ybonus-'+pi+'" onclick="ytzBonusTap('+pi+')"></td>'; });
+      html+='</tr>';
+    }
+  });
+  html+='<tr class="ytz-total-row"><td>Grand Total</td>';
+  ytz.players.forEach(function(_,pi){ html+='<td class="score-cell" id="sc-grand-'+pi+'"></td>'; });
+  html+='</tr></tbody>';
+  table.innerHTML=html;
+  ytzRefresh();
+}
+
+function ytzCellTap(catId,pi){ ytz.activePi=pi; ytzRefresh(); ytzOpenModal(catId,pi,false); }
+function ytzBonusTap(pi){ ytz.activePi=pi; ytzRefresh(); ytzOpenModal('yahtzee',pi,true); }
+
+function ytzOpenModal(catId,pi,isBonus){
+  var cat=YTZ_CATS.find(function(c){return c.id===catId;});
+  var p=ytz.players[pi];
+  var currentVal=isBonus?null:ytz.scores[p][catId];
+  mState={catId:catId,pi:pi,bonus:isBonus,val:null};
+  document.getElementById('m-cat').textContent=isBonus?'Yahtzee Bonus':cat.label;
+  document.getElementById('m-player').textContent=p;
+  document.getElementById('m-hint').textContent=isBonus?'Each extra Yahtzee = +100.':cat.hint;
+  var btnsEl=document.getElementById('m-btns');
+  btnsEl.innerHTML='';
+  var vals=[];
+  if(isBonus) vals=[100,200,300,400,500];
+  else if(catId==='fh') vals=[25];
+  else if(catId==='ss') vals=[30];
+  else if(catId==='ls') vals=[40];
+  else if(catId==='yahtzee') vals=[50];
+  else if(catId==='ones') vals=[1,2,3,4,5];
+  else if(catId==='twos') vals=[2,4,6,8,10];
+  else if(catId==='threes') vals=[3,6,9,12,15];
+  else if(catId==='fours') vals=[4,8,12,16,20];
+  else if(catId==='fives') vals=[5,10,15,20,25];
+  else if(catId==='sixes') vals=[6,12,18,24,30];
+  else { for(var v=5;v<=30;v++) vals.push(v); }
+  if(vals.length===1&&!isBonus&&currentVal===null){ ytzCommit(vals[0]); return; }
+  vals.forEach(function(v){
+    var btn=document.createElement('button');
+    btn.className='score-btn'+(v===currentVal?' sel':'');
+    btn.textContent=v;
+    btn.addEventListener('click',(function(val){return function(){ytzCommit(val);};})(v));
+    btnsEl.appendChild(btn);
+  });
+  document.getElementById('m-confirm').disabled=true;
+  document.getElementById('m-confirm').style.display='none';
+  var clearBtn=document.getElementById('m-score-zero');
+  if(currentVal!==null&&!isBonus){ clearBtn.textContent='Clear score'; clearBtn.onclick=function(){ytzClearScore(catId,pi);}; }
+  else { clearBtn.textContent='Strike out (0)'; clearBtn.onclick=function(){ytzCommit(0);}; }
+  document.getElementById('ytz-modal').classList.add('open');
+}
+function ytzClearScore(catId,pi){ ytz.scores[ytz.players[pi]][catId]=null; ytzCloseModal(); ytzRefresh(); }
+function ytzCommitSelected(){ if(mState.val!==null) ytzCommit(mState.val); }
+function ytzCommit(val){
+  var p=ytz.players[mState.pi];
+  if(mState.bonus){ ytz.scores[p].yahtzee_bonus=(ytz.scores[p].yahtzee_bonus||0)+val; }
+  else {
+    ytz.scores[p][mState.catId]=val;
+    if(mState.catId==='yahtzee'&&val===0) ytz.scores[p].yahtzee_bonus=0;
+  }
+  ytz.activePi=(mState.pi+1)%ytz.players.length;
+  ytzCloseModal();
+  ytzRefresh();
+}
+function ytzCloseModal(){ document.getElementById('ytz-modal').classList.remove('open'); document.getElementById('m-confirm').style.display=''; mState={catId:null,pi:null,bonus:false,val:null}; }
+
+function ytzUpperTotal(p){ return ['ones','twos','threes','fours','fives','sixes'].reduce(function(s,id){return s+(ytz.scores[p][id]||0);},0); }
+function ytzGrandTotal(p){
+  var up=ytzUpperTotal(p);
+  var low=['3oak','4oak','fh','ss','ls','yahtzee','chance'].reduce(function(s,id){return s+(ytz.scores[p][id]||0);},0);
+  return up+(up>=63?35:0)+low+(ytz.scores[p].yahtzee_bonus||0);
+}
+
+function ytzRefresh(){
+  var activeName=document.getElementById('ytz-active-name');
+  if(activeName) activeName.innerHTML='<span class="cdot" style="background:'+COLOURS[ytz.activePi%8]+'"></span>'+ytz.players[ytz.activePi];
+  var headerCells=document.querySelectorAll('#ytz-table thead th');
+  headerCells.forEach(function(th,i){ if(i===0)return; th.classList.toggle('cur-col-header',(i-1)===ytz.activePi); });
+  ytz.players.forEach(function(p,pi){
+    var isActive=pi===ytz.activePi;
+    YTZ_CATS.forEach(function(cat){
+      var cell=document.getElementById('sc-'+cat.id+'-'+pi);
+      if(!cell) return;
+      var v=ytz.scores[p][cat.id];
+      cell.className='score-cell'+(isActive?' cur-col':'');
+      if(v===null){ cell.textContent=''; }
+      else{ cell.textContent=v; cell.classList.add('filled'); if(v===0) cell.classList.add('zero'); }
+    });
+    var up=ytzUpperTotal(p);
+    var bCell=document.getElementById('sc-bonus-'+pi); if(bCell){bCell.textContent=up>=63?'+35':up+'/63';bCell.style.color=up>=63?'var(--green)':'';}
+    var uCell=document.getElementById('sc-uptot-'+pi); if(uCell) uCell.textContent=up;
+    var yahtzeeStruck=ytz.scores[p]['yahtzee']===0;
+    var yb=ytz.scores[p].yahtzee_bonus||0;
+    var ybCell=document.getElementById('sc-ybonus-'+pi);
+    if(ybCell){
+      if(yahtzeeStruck){ybCell.textContent='✗';ybCell.style.color='rgba(0,0,0,0.2)';ybCell.onclick=null;}
+      else{ybCell.textContent=yb>0?'+'+yb:'';ybCell.style.color='';ybCell.onclick=function(){ytzBonusTap(pi);};}
+    }
+    var gCell=document.getElementById('sc-grand-'+pi); if(gCell) gCell.textContent=ytzGrandTotal(p);
+  });
+}
+
+function ytzCheckEnd(){
+  var allDone=ytz.players.every(function(p){return YTZ_CATS.every(function(c){return ytz.scores[p][c.id]!==null;});});
+  if(!allDone&&!confirm('Not all scores filled in. Show results anyway?')) return;
+  var sorted=ytz.players.slice().sort(function(a,b){return ytzGrandTotal(b)-ytzGrandTotal(a);});
+  var winner=sorted[0];
+  document.getElementById('ytz-game').classList.add('hidden');
+  document.getElementById('ytz-end').classList.remove('hidden');
+  document.getElementById('ytz-win-name').textContent=winner;
+  document.getElementById('ytz-win-score').textContent=ytzGrandTotal(winner)+' points';
+  document.getElementById('ytz-final').innerHTML=sorted.map(function(p,i){
+    return '<div class="final-row"><span><span class="rank">'+(i+1)+'.</span>'+p+'</span><span class="final-val">'+ytzGrandTotal(p)+'</span></div>';
+  }).join('');
+}
+function ytzResetGame(){ document.getElementById('ytz-game').classList.add('hidden'); document.getElementById('ytz-end').classList.add('hidden'); document.getElementById('ytz-setup').classList.remove('hidden'); ytzInitSetup(); }
+
+/* ── Init ── */
+bbInitSetup();
+ytzInitSetup();
+</script>
+</body>
+</html>
