@@ -19,24 +19,24 @@ if ('serviceWorker' in navigator) {
   c.width = 180; c.height = 180;
   var ctx = c.getContext('2d');
   var bg = ctx.createLinearGradient(0, 0, 180, 180);
-  bg.addColorStop(0, '#1e4030');
-  bg.addColorStop(1, '#112618');
+  bg.addColorStop(0, '#3a2010');
+  bg.addColorStop(1, '#1e1208');
   ctx.fillStyle = bg;
   ctx.roundRect(0, 0, 180, 180, 36);
   ctx.fill();
-  ctx.strokeStyle = '#c9a84c';
+  ctx.strokeStyle = '#b5651d';
   ctx.lineWidth = 3.5;
   ctx.beginPath();
   ctx.arc(90, 90, 74, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(201,168,76,0.25)';
+  ctx.strokeStyle = 'rgba(181,101,29,0.25)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.arc(90, 90, 65, 0, Math.PI * 2);
   ctx.stroke();
   // Spade suit as the icon
   ctx.font = 'bold 90px serif';
-  ctx.fillStyle = '#e8c96a';
+  ctx.fillStyle = '#d4845a';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -50,17 +50,17 @@ if ('serviceWorker' in navigator) {
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --felt: #1a3a2a;
-    --felt-light: #224535;
-    --felt-border: #2d5c3a;
-    --cream: #f5f0e8;
-    --cream-dark: #e8e0cc;
-    --gold: #c9a84c;
-    --gold-light: #e8c96a;
-    --red: #c0392b;
-    --green: #27ae60;
-    --text-dark: #1a1a1a;
-    --text-mid: #4a4a4a;
+    --felt: #2c1f14;
+    --felt-light: #3a2a1c;
+    --felt-border: #4e3828;
+    --cream: #f2ead8;
+    --cream-dark: #e0d4b8;
+    --gold: #b5651d;
+    --gold-light: #d4845a;
+    --red: #8b2020;
+    --green: #5a7a3a;
+    --text-dark: #1a1209;
+    --text-mid: #4a3828;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -193,20 +193,16 @@ if ('serviceWorker' in navigator) {
   .bb-pname .sub { font-size: 0.68rem; color: rgba(245,240,232,0.4); font-weight: 400; }
 
   /* Bid stepper */
-  .bb-bid-stepper { display: flex; align-items: center; gap: 0; }
-  .bb-step {
-    width: 36px; height: 36px; border: 1.5px solid var(--felt-border);
-    background: rgba(0,0,0,0.2); color: var(--cream);
-    font-size: 1.1rem; border-radius: 7px; -webkit-appearance: none;
-    display: flex; align-items: center; justify-content: center;
+  /* Bid/tricks display — tap to open numpad */
+  .bb-bid-display {
+    min-width: 60px; padding: 10px 16px;
+    background: rgba(0,0,0,0.2); border: 1.5px solid var(--felt-border);
+    border-radius: 9px; color: var(--cream);
+    font-family: 'Courier Prime', monospace; font-size: 1.5rem; font-weight: 700;
+    text-align: center; -webkit-appearance: none;
   }
-  .bb-step:disabled { opacity: 0.25; }
-  .bb-bid-val {
-    width: 40px; text-align: center;
-    font-family: 'Courier Prime', monospace; font-size: 1.3rem; font-weight: 700;
-    color: var(--cream);
-  }
-  .bb-bid-val.cant-use { color: var(--red); }
+  .bb-bid-display:active { border-color: var(--gold); background: rgba(181,101,29,0.2); }
+  .bb-bid-display.cant-use { color: var(--red); border-color: var(--red); }
 
   /* Tricks phase */
   .bb-tricks-row {
@@ -244,7 +240,52 @@ if ('serviceWorker' in navigator) {
   .btn-confirm-round:disabled { opacity: 0.3; }
   .btn-confirm-round:active:not(:disabled) { opacity: 0.82; }
 
-  /* End screen */
+  /* Number pad modal */
+  .numpad-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 300;
+    align-items: flex-end; justify-content: center;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .numpad-overlay.open { display: flex; }
+  .numpad-sheet {
+    background: var(--felt-light); border: 1px solid var(--felt-border);
+    border-radius: 18px 18px 0 0; padding: 18px 16px 24px;
+    width: 100%; max-width: 400px;
+  }
+  .numpad-title {
+    font-family: 'Playfair Display', serif; font-size: 1rem;
+    color: var(--gold-light); margin-bottom: 3px;
+  }
+  .numpad-sub { font-size: 0.72rem; color: rgba(242,234,216,0.4); margin-bottom: 14px; }
+  .numpad-display {
+    font-family: 'Courier Prime', monospace; font-size: 2.8rem;
+    font-weight: 700; color: var(--cream); text-align: center;
+    margin-bottom: 14px; line-height: 1;
+    background: rgba(0,0,0,0.2); border-radius: 10px; padding: 10px;
+  }
+  .numpad-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin-bottom: 12px;
+  }
+  .np-btn {
+    padding: 16px 8px; min-height: 56px;
+    background: rgba(0,0,0,0.2); border: 1.5px solid var(--felt-border);
+    border-radius: 10px; color: var(--cream);
+    font-family: 'Courier Prime', monospace; font-size: 1.3rem; font-weight: 700;
+    -webkit-appearance: none; display: flex; align-items: center; justify-content: center;
+  }
+  .np-btn:active { background: rgba(181,101,29,0.3); border-color: var(--gold); }
+  .np-btn.selected { background: var(--gold); border-color: var(--gold); color: white; }
+  .np-btn.np-confirm {
+    background: var(--gold); border-color: var(--gold); color: white;
+    font-family: 'Playfair Display', serif; font-size: 1rem;
+  }
+  .np-btn.np-cancel {
+    background: transparent; border-color: var(--felt-border);
+    color: rgba(242,234,216,0.4); font-size: 0.85rem; font-family: 'Inter', sans-serif;
+  }
+  .np-btn:disabled { opacity: 0.25; }
   .end-screen { text-align: center; padding: 28px 14px; }
   .end-screen h2 { font-family: 'Playfair Display', serif; font-size: 1.55rem; color: var(--gold-light); margin-bottom: 4px; }
   .winner-name { font-family: 'Playfair Display', serif; font-size: 2.1rem; font-weight: 900; color: white; margin: 8px 0 2px; }
@@ -429,6 +470,16 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
+<!-- Number pad modal -->
+<div class="numpad-overlay" id="numpad-overlay">
+  <div class="numpad-sheet">
+    <div class="numpad-title" id="np-title"></div>
+    <div class="numpad-sub" id="np-sub"></div>
+    <div class="numpad-display" id="np-display">0</div>
+    <div class="numpad-grid" id="np-grid"></div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -440,6 +491,47 @@ function switchGame(g) {
   document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('view-'+g).classList.add('active');
   document.getElementById('tab-'+g).classList.add('active');
+}
+
+/* ════════════════════════════════════
+   NUMBER PAD
+════════════════════════════════════ */
+var npState = { value: 0, max: 12, onConfirm: null };
+
+function openNumpad(title, sub, current, max, onConfirm) {
+  npState = { value: current, max: max, onConfirm: onConfirm };
+  document.getElementById('np-title').textContent = title;
+  document.getElementById('np-sub').textContent = sub;
+  npRender();
+  document.getElementById('numpad-overlay').classList.add('open');
+}
+
+function npRender() {
+  document.getElementById('np-display').textContent = npState.value;
+  var grid = document.getElementById('np-grid');
+  grid.innerHTML = '';
+  for (var n = 0; n <= npState.max; n++) {
+    var btn = document.createElement('button');
+    btn.className = 'np-btn' + (n === npState.value ? ' selected' : '');
+    btn.textContent = n;
+    btn.addEventListener('click', (function(val) {
+      return function() {
+        npState.value = val;
+        npConfirm();
+      };
+    })(n));
+    grid.appendChild(btn);
+  }
+  var cancel = document.createElement('button');
+  cancel.className = 'np-btn np-cancel';
+  cancel.textContent = 'Cancel';
+  cancel.onclick = function() { document.getElementById('numpad-overlay').classList.remove('open'); };
+  grid.appendChild(cancel);
+}
+
+function npConfirm() {
+  document.getElementById('numpad-overlay').classList.remove('open');
+  if (npState.onConfirm) npState.onConfirm(npState.value);
 }
 
 /* ════════════════════════════════════════
@@ -663,29 +755,39 @@ function bbRenderBidRows() {
         '<span class="cdot" style="background:'+COLOURS[pi%8]+'"></span>' +
         p + tags +
       '</div>' +
-      '<div class="bb-bid-stepper">' +
-        '<button class="bb-step" onclick="bbAdjBid(\''+p+'\',-1)">−</button>' +
-        '<div class="bb-bid-val'+(isForbidden?' cant-use':'')+'" id="bid-val-'+pi+'">'+bidVal+'</div>' +
-        '<button class="bb-step" onclick="bbAdjBid(\''+p+'\',1)">+</button>' +
-      '</div>';
+      '<button class="bb-bid-display'+(isForbidden?' cant-use':'')+'" id="bid-val-'+pi+'" onclick="bbOpenBidNumpad(\''+p+'\','+pi+')">' +
+        bidVal +
+      '</button>';
     rows.appendChild(row);
   });
 
-  var forbidden2 = bbCantEqual();
-  var lastPi2 = bbBidOrder()[bbBidOrder().length-1];
-  var lastName2 = bb.players[lastPi2];
-  var lastBid = bb.bids[lastName2] || 0;
-  var allSet = bbAllBidsSet();
-  var lastOk = bbIsBlind() || lastBid !== forbidden2;
-  var trumpOk = bbIsBlind() || bb.trump !== null;
-  document.getElementById('bb-confirm-bids').disabled = !(allSet && lastOk && trumpOk);
+  bbUpdateBidConfirm();
 }
 
-function bbAdjBid(name, delta) {
+function bbOpenBidNumpad(name, pi) {
   var cards = bbCards();
-  var newVal = Math.max(0, Math.min(cards, (bb.bids[name] || 0) + delta));
-  bb.bids[name] = newVal;
-  bbRenderBidRows();
+  var current = bb.bids[name] || 0;
+  openNumpad(
+    name + "'s bid",
+    'How many slagen will you win? (0–' + cards + ')',
+    current,
+    cards,
+    function(val) {
+      bb.bids[name] = val;
+      bbRenderBidRows();
+    }
+  );
+}
+
+function bbUpdateBidConfirm() {
+  var forbidden = bbCantEqual();
+  var lastPi = bbBidOrder()[bbBidOrder().length-1];
+  var lastName = bb.players[lastPi];
+  var lastBid = bb.bids[lastName] !== undefined ? bb.bids[lastName] : 0;
+  var allSet = bb.players.every(function(p){ return bb.bids[p] !== undefined && bb.bids[p] !== null; });
+  var lastOk = bbIsBlind() || lastBid !== forbidden;
+  var trumpOk = bbIsBlind() || bb.trump !== null;
+  document.getElementById('bb-confirm-bids').disabled = !(allSet && lastOk && trumpOk);
 }
 
 function bbConfirmBids() {
@@ -716,28 +818,30 @@ function bbRenderTricksRows() {
         '<div class="pname"><span class="cdot" style="background:'+COLOURS[pi%8]+'"></span>'+p+'</div>' +
         '<div class="bid-line">Bid: '+bid+' slag'+(bid!==1?'en':'')+'</div>' +
       '</div>' +
-      '<div class="bb-bid-stepper">' +
-        '<button class="bb-step" onclick="bbAdjTricks(\''+p+'\',-1)">−</button>' +
-        '<div class="bb-bid-val" id="trick-val-'+pi+'">'+got+'</div>' +
-        '<button class="bb-step" onclick="bbAdjTricks(\''+p+'\',1)">+</button>' +
-      '</div>';
+      '<button class="bb-bid-display" id="trick-val-'+pi+'" onclick="bbOpenTricksNumpad(\''+p+'\','+pi+')">' +
+        got +
+      '</button>';
     rows.appendChild(row);
   });
 
   bbUpdateTricksConfirm();
 }
 
-function bbAdjTricks(name, delta) {
+function bbOpenTricksNumpad(name, pi) {
   var cards = bbCards();
-  var newVal = Math.max(0, Math.min(cards, (bb.tricks[name] || 0) + delta));
-  bb.tricks[name] = newVal;
-
-  // Update display
-  bb.players.forEach(function(p, pi) {
-    var el = document.getElementById('trick-val-'+pi);
-    if (el) el.textContent = bb.tricks[p] || 0;
-  });
-  bbUpdateTricksConfirm();
+  var current = bb.tricks[name] || 0;
+  openNumpad(
+    name,
+    'How many slagen did you win? (0–' + cards + ')',
+    current,
+    cards,
+    function(val) {
+      bb.tricks[name] = val;
+      var el = document.getElementById('trick-val-'+pi);
+      if (el) el.textContent = val;
+      bbUpdateTricksConfirm();
+    }
+  );
 }
 
 function bbUpdateTricksConfirm() {
