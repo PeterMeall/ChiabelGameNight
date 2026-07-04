@@ -562,7 +562,8 @@ function bbStart() {
   bb.scores = {};
   bb.players.forEach(function(p){ bb.scores[p] = []; });
   bb.roundIdx = 0;
-  bb.dealerIdx = 0;
+  // Randomise who deals first
+  bb.dealerIdx = Math.floor(Math.random() * bb.players.length);
   document.getElementById('bb-setup').classList.add('hidden');
   document.getElementById('bb-end').classList.add('hidden');
   document.getElementById('bb-game').classList.remove('hidden');
@@ -642,23 +643,25 @@ function bbRenderBidRows() {
   rows.innerHTML = '';
   var order = bbBidOrder();
   var lastPi = order[order.length - 1];
-  var lastName = bb.players[lastPi];
   var forbidden = bbCantEqual();
 
   order.forEach(function(pi, orderIdx) {
     var p = bb.players[pi];
-    var isLast = (pi === lastPi);
-    var row = document.createElement('div');
-    row.className = 'bb-player-row';
-    var subText = isLast && !bbIsBlind() ? 'Dealer — bids last' : '';
-    var bidVal = bb.bids[p] !== undefined ? bb.bids[p] : 0;
-    var isForbidden = isLast && !bbIsBlind() && bidVal === forbidden;
+    var isDealer = (pi === lastPi);
+    var isFirst  = (orderIdx === 0);
+    var bidVal   = bb.bids[p] !== undefined ? bb.bids[p] : 0;
+    var isForbidden = isDealer && !bbIsBlind() && bidVal === forbidden;
 
+    var tags = '';
+    if (isFirst)  tags += '<span class="sub">Bids first</span>';
+    if (isDealer) tags += '<span class="sub">Dealer</span>';
+
+    var row = document.createElement('div');
+    row.className = 'bb-player-row' + (isFirst ? ' active-bidder' : '');
     row.innerHTML =
       '<div class="bb-pname">' +
         '<span class="cdot" style="background:'+COLOURS[pi%8]+'"></span>' +
-        p +
-        (subText ? '<span class="sub">'+subText+'</span>' : '') +
+        p + tags +
       '</div>' +
       '<div class="bb-bid-stepper">' +
         '<button class="bb-step" onclick="bbAdjBid(\''+p+'\',-1)">−</button>' +
@@ -668,9 +671,9 @@ function bbRenderBidRows() {
     rows.appendChild(row);
   });
 
-  // Update confirm button
   var forbidden2 = bbCantEqual();
-  var lastName2 = bb.players[bbBidOrder()[bbBidOrder().length-1]];
+  var lastPi2 = bbBidOrder()[bbBidOrder().length-1];
+  var lastName2 = bb.players[lastPi2];
   var lastBid = bb.bids[lastName2] || 0;
   var allSet = bbAllBidsSet();
   var lastOk = bbIsBlind() || lastBid !== forbidden2;
