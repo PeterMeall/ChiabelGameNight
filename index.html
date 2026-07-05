@@ -804,8 +804,8 @@ function bbUpdateBidConfirm() {
   var lastBid = bb.bids[lastName] !== undefined ? bb.bids[lastName] : 0;
   var allSet = bb.players.every(function(p){ return bb.bids[p] !== undefined && bb.bids[p] !== null; });
   var lastOk = bbIsBlind() || lastBid !== forbidden;
-  var trumpOk = bbIsBlind() || bb.trump !== null;
-  document.getElementById('bb-confirm-bids').disabled = !(allSet && lastOk && trumpOk);
+  // Trump is recommended but not required to proceed
+  document.getElementById('bb-confirm-bids').disabled = !(allSet && lastOk);
 }
 
 function bbConfirmBids() {
