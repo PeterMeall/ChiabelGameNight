@@ -274,6 +274,14 @@ if ('serviceWorker' in navigator) {
     -webkit-appearance: none; font-size: 16px;
   }
   .sb-score-input:focus { outline: none; border-color: var(--gold); }
+  .sb-sign-btn {
+    width: 44px; height: 44px; flex-shrink: 0;
+    border: 1.5px solid var(--felt-border); border-radius: 8px;
+    background: rgba(0,0,0,0.2); color: var(--green);
+    font-size: 1.3rem; font-weight: 700; font-family: 'Courier Prime', monospace;
+    -webkit-appearance: none;
+  }
+  .sb-sign-btn.negative { border-color: var(--red); color: var(--red); }
   .numpad-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,0.65); z-index: 300;
@@ -1410,15 +1418,30 @@ function sbRenderEntryRow() {
     div.className = 'sb-entry-player';
     div.innerHTML =
       '<div class="sb-pname"><span class="cdot" style="background:'+COLOURS[i%8]+'"></span>'+p+'</div>' +
-      '<input class="sb-score-input" type="text" id="sb-input-'+i+'" value="0">';
+      '<input class="sb-score-input" type="number" inputmode="numeric" id="sb-input-'+i+'" value="0" min="0">' +
+      '<button class="sb-sign-btn" id="sb-sign-'+i+'" onclick="sbToggleSign('+i+')">+</button>';
     row.appendChild(div);
   });
 }
 
+function sbToggleSign(i) {
+  var btn = document.getElementById('sb-sign-'+i);
+  var isNeg = btn.classList.contains('negative');
+  if (isNeg) {
+    btn.classList.remove('negative');
+    btn.textContent = '+';
+  } else {
+    btn.classList.add('negative');
+    btn.textContent = '−';
+  }
+}
+
 function sbConfirmRound() {
   sb.players.forEach(function(p, i) {
-    var inp = document.getElementById('sb-input-'+i);
-    var val = parseInt(inp ? inp.value : '0') || 0;
+    var inp  = document.getElementById('sb-input-'+i);
+    var sign = document.getElementById('sb-sign-'+i);
+    var val  = Math.abs(parseInt(inp ? inp.value : '0') || 0);
+    if (sign && sign.classList.contains('negative')) val = -val;
     sb.scores[p].push(val);
   });
   sb.round++;
