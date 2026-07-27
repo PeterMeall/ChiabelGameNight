@@ -1410,7 +1410,7 @@ function sbRenderEntryRow() {
     div.className = 'sb-entry-player';
     div.innerHTML =
       '<div class="sb-pname"><span class="cdot" style="background:'+COLOURS[i%8]+'"></span>'+p+'</div>' +
-      '<input class="sb-score-input" type="number" id="sb-input-'+i+'" value="0" inputmode="numeric">';
+      '<input class="sb-score-input" type="text" inputmode="decimal" id="sb-input-'+i+'" value="0" pattern="-?[0-9]*">';
     row.appendChild(div);
   });
 }
