@@ -247,7 +247,33 @@ if ('serviceWorker' in navigator) {
   .btn-confirm-round:disabled { opacity: 0.25; background: var(--felt-border); color: rgba(242,234,216,0.3); box-shadow: none; }
   .btn-confirm-round:active:not(:disabled) { opacity: 0.82; }
 
-  /* Number pad modal */
+  /* ══════════════════════════════════════
+     FREE SCOREBOARD
+  ══════════════════════════════════════ */
+  .sb-table-wrap { background: var(--felt-light); border: 1px solid var(--felt-border); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+  .sb-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .sb-table colgroup col:first-child { width: 36px; }
+  .sb-table th { padding: 9px 6px; font-size: 0.68rem; font-weight: 600; color: var(--gold-light); text-align: center; background: rgba(0,0,0,0.15); border-bottom: 1px solid var(--felt-border); }
+  .sb-table th:first-child { text-align: left; padding-left: 10px; }
+  .sb-table td { padding: 7px 6px; font-family: 'Courier Prime', monospace; font-size: 0.85rem; text-align: center; border-bottom: 1px solid rgba(78,56,40,0.4); }
+  .sb-table td:first-child { font-family: 'Inter', sans-serif; font-size: 0.68rem; color: rgba(242,234,216,0.4); text-align: left; padding-left: 10px; }
+  .sb-table tr:last-child td { border-bottom: none; }
+  .sb-td-pos { color: var(--green); }
+  .sb-td-neg { color: var(--red); }
+  .sb-td-tot { color: var(--gold-light); font-weight: 700; }
+
+  /* Score entry row */
+  .sb-entry-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .sb-entry-player { display: flex; align-items: center; gap: 10px; background: var(--felt-light); border: 1.5px solid var(--felt-border); border-radius: 11px; padding: 11px 13px; }
+  .sb-entry-player .sb-pname { flex: 1; font-size: 0.88rem; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .sb-score-input {
+    width: 80px; padding: 9px 10px; text-align: center;
+    background: rgba(0,0,0,0.2); border: 1.5px solid var(--felt-border);
+    border-radius: 8px; color: var(--cream);
+    font-family: 'Courier Prime', monospace; font-size: 1.2rem; font-weight: 700;
+    -webkit-appearance: none; font-size: 16px;
+  }
+  .sb-score-input:focus { outline: none; border-color: var(--gold); }
   .numpad-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,0.65); z-index: 300;
@@ -353,6 +379,7 @@ if ('serviceWorker' in navigator) {
 <div class="game-tabs">
   <button class="tab-btn active" id="tab-bb"      onclick="switchGame('bb')">♠ Boeren Bridge</button>
   <button class="tab-btn"        id="tab-yahtzee" onclick="switchGame('yahtzee')">🎲 Yahtzee</button>
+  <button class="tab-btn"        id="tab-sb"      onclick="switchGame('sb')">📊 Scoreboard</button>
 </div>
 
 <!-- ════════════════════ BOEREN BRIDGE ════════════════════ -->
@@ -471,6 +498,50 @@ if ('serviceWorker' in navigator) {
     <div class="winner-score" id="ytz-win-score"></div>
     <div id="ytz-final"></div>
     <button class="btn-primary" style="margin-top:20px" onclick="ytzResetGame()">Play Again</button>
+  </div>
+</div>
+
+<!-- ════════════════════ SCOREBOARD ════════════════════ -->
+<div class="view" id="view-sb">
+
+  <!-- Setup -->
+  <div id="sb-setup">
+    <div class="setup-card" style="margin-top:13px">
+      <h2>Players</h2>
+      <div class="player-list" id="sb-player-list"></div>
+      <button class="btn-add" onclick="sbAddPlayer()">+ Add player</button>
+    </div>
+    <div class="setup-card">
+      <h2>Game name <span style="font-size:0.75rem;color:rgba(242,234,216,0.4);font-family:'Inter',sans-serif;font-weight:400">(optional)</span></h2>
+      <input class="player-input" type="text" id="sb-game-name" placeholder="e.g. Poker night" style="width:100%">
+    </div>
+    <button class="btn-primary" onclick="sbStart()">Start</button>
+    <p class="hint">Free scoreboard · plus or minus points per round</p>
+  </div>
+
+  <!-- Game -->
+  <div id="sb-game" class="hidden">
+    <div class="bb-topbar" style="margin-bottom:12px">
+      <span class="rnd" id="sb-game-title">Scoreboard</span>
+      <span id="sb-round-label" style="font-size:0.72rem;color:rgba(242,234,216,0.4)"></span>
+      <button class="btn-ghost" onclick="sbResetGame()" style="border:1px solid var(--felt-border);padding:5px 9px;border-radius:7px;">New game</button>
+    </div>
+
+    <!-- Score table -->
+    <div class="sb-table-wrap">
+      <table class="sb-table">
+        <colgroup><col style="width:36px"></colgroup>
+        <thead id="sb-thead"></thead>
+        <tbody id="sb-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Entry section -->
+    <div class="setup-card">
+      <h2>Round <span id="sb-entry-round"></span></h2>
+      <div class="sb-entry-row" id="sb-entry-row"></div>
+      <button class="btn-primary" onclick="sbConfirmRound()">Add Round</button>
+    </div>
   </div>
 </div>
 
@@ -1234,9 +1305,137 @@ function ytzCheckEnd(){
 }
 function ytzResetGame(){ document.getElementById('ytz-game').classList.add('hidden'); document.getElementById('ytz-end').classList.add('hidden'); document.getElementById('ytz-setup').classList.remove('hidden'); ytzInitSetup(); }
 
+/* ════════════════════════════════════════
+   FREE SCOREBOARD
+════════════════════════════════════════ */
+var sb = {
+  players: [],
+  scores: {},   // name -> [score per round]
+  round: 1,
+};
+
+function sbInitSetup() {
+  sb.players = DEFAULT_PLAYERS.slice();
+  sbRebuildSetup();
+}
+
+function sbRebuildSetup() {
+  var list = document.getElementById('sb-player-list');
+  list.innerHTML = '';
+  sb.players.forEach(function(name, i) {
+    var row = document.createElement('div');
+    row.className = 'player-row';
+    row.innerHTML =
+      '<span class="p-dot" style="background:'+COLOURS[i%8]+'"></span>' +
+      '<input class="player-input" type="text" value="'+name+'" oninput="sb.players['+i+']=this.value" placeholder="Player '+(i+1)+'">' +
+      '<button class="btn-remove" onclick="sbRemovePlayer('+i+')">✕</button>';
+    list.appendChild(row);
+  });
+}
+
+function sbAddPlayer() {
+  if (sb.players.length >= 8) return;
+  sb.players.push('Player '+(sb.players.length+1));
+  sbRebuildSetup();
+}
+function sbRemovePlayer(i) {
+  if (sb.players.length <= 2) return;
+  sb.players.splice(i, 1);
+  sbRebuildSetup();
+}
+
+function sbStart() {
+  var inputs = document.querySelectorAll('#sb-player-list .player-input');
+  sb.players = Array.prototype.map.call(inputs, function(inp){ return inp.value.trim()||'Player'; });
+  if (sb.players.length < 2) { alert('Add at least 2 players.'); return; }
+  sb.scores = {};
+  sb.players.forEach(function(p){ sb.scores[p] = []; });
+  sb.round = 1;
+
+  var name = document.getElementById('sb-game-name').value.trim() || 'Scoreboard';
+  document.getElementById('sb-game-title').textContent = name;
+
+  document.getElementById('sb-setup').classList.add('hidden');
+  document.getElementById('sb-game').classList.remove('hidden');
+  sbBuildTable();
+  sbRenderEntryRow();
+}
+
+function sbBuildTable() {
+  var thead = document.getElementById('sb-thead');
+  var html = '<tr><th>Rnd</th>';
+  sb.players.forEach(function(p, i) {
+    html += '<th><span class="cdot" style="background:'+COLOURS[i%8]+'"></span>'+p+'</th>';
+  });
+  thead.innerHTML = html + '</tr>';
+  sbRenderTable();
+}
+
+function sbRenderTable() {
+  document.getElementById('sb-round-label').textContent = (sb.round-1)+' round'+(sb.round!==2?'s':'');
+  var tbody = document.getElementById('sb-tbody');
+  var rows = '';
+
+  var maxRounds = sb.scores[sb.players[0]].length;
+  for (var r = 0; r < maxRounds; r++) {
+    var row = '<tr><td>'+(r+1)+'</td>';
+    sb.players.forEach(function(p) {
+      var v = sb.scores[p][r];
+      var cls = v > 0 ? 'sb-td-pos' : v < 0 ? 'sb-td-neg' : '';
+      row += '<td class="'+cls+'">'+(v > 0 ? '+'+v : v)+'</td>';
+    });
+    rows += row + '</tr>';
+  }
+
+  // Totals
+  if (maxRounds > 0) {
+    var tot = '<tr><td style="color:var(--gold-light)">TOT</td>';
+    sb.players.forEach(function(p) {
+      var total = sb.scores[p].reduce(function(s,v){ return s+v; }, 0);
+      var cls = total > 0 ? 'sb-td-pos' : total < 0 ? 'sb-td-neg' : '';
+      tot += '<td class="'+cls+' sb-td-tot">'+(total > 0 ? '+'+total : total)+'</td>';
+    });
+    rows += tot + '</tr>';
+  }
+
+  tbody.innerHTML = rows;
+}
+
+function sbRenderEntryRow() {
+  document.getElementById('sb-entry-round').textContent = sb.round;
+  var row = document.getElementById('sb-entry-row');
+  row.innerHTML = '';
+  sb.players.forEach(function(p, i) {
+    var div = document.createElement('div');
+    div.className = 'sb-entry-player';
+    div.innerHTML =
+      '<div class="sb-pname"><span class="cdot" style="background:'+COLOURS[i%8]+'"></span>'+p+'</div>' +
+      '<input class="sb-score-input" type="number" id="sb-input-'+i+'" value="0" inputmode="numeric">';
+    row.appendChild(div);
+  });
+}
+
+function sbConfirmRound() {
+  sb.players.forEach(function(p, i) {
+    var inp = document.getElementById('sb-input-'+i);
+    var val = parseInt(inp ? inp.value : '0') || 0;
+    sb.scores[p].push(val);
+  });
+  sb.round++;
+  sbRenderTable();
+  sbRenderEntryRow();
+}
+
+function sbResetGame() {
+  document.getElementById('sb-game').classList.add('hidden');
+  document.getElementById('sb-setup').classList.remove('hidden');
+  sbInitSetup();
+}
+
 /* ── Init ── */
 bbInitSetup();
 ytzInitSetup();
+sbInitSetup();
 </script>
 </body>
 </html>
